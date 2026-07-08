@@ -1,0 +1,111 @@
+# Venom appliance configuration — installed to /etc/venom/venom.toml on first
+# provision. Edit on the Pi (or before flashing) and `systemctl restart venom`.
+
+[venom]
+poll_interval = 30.0     # seconds between health cycles (was 10 — too aggressive, flapped the brain)
+probe_timeout = 5.0      # seconds per reachability probe (was 3 — too tight for India->US latency)
+status_path = "/run/venom/status.json"
+memory_path = "/var/lib/venom/memory.json"
+
+[gemini]
+# Baked in by prepare-pendrive.ps1 -GeminiApiKey. Required for voice.
+api_key = ""
+
+[audio]
+# "auto" uses bluetooth when a headset is configured below, else USB.
+output = "auto"
+# Baked in by prepare-pendrive.ps1 (auto-detected from your laptop or via
+# -BluetoothMac / -BluetoothName). First boot: put the headset in pairing
+# mode near the Pi once; it is trusted and reconnects automatically forever.
+bluetooth_mac = ""
+bluetooth_name = ""
+
+[voice]
+enabled = true
+wake_word = "hey_jarvis"       # say "Hey Jarvis" to wake Venom
+wake_threshold = 0.30
+inactivity_timeout = 45.0      # seconds of silence before going back to sleep
+endpoint_silence_ms = 500      # silence after you speak before Venom replies (lower = snappier)
+thinking_budget = -1           # -1 = model's own default (native-audio replies worse with it off); 0 = force off
+affective_dialog = false       # OFF by default: forces the slower v1alpha endpoint (latency). Set true to trade snappiness for emotion-aware tone.
+proactive_audio = false        # let her decide when NOT to reply (more human, adds a decision beat -> less snappy)
+# temperature = 1.1            # uncomment to add natural variety; leave unset for the model default
+live_model = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+voice_name = "Leda"            # warm female voice for Hinglish (Gemini prebuilt set)
+user_name = "Boss"
+language = "en"
+
+[internet]
+host = "1.1.1.1"
+port = 53
+
+# ── Physical buttons ─────────────────────────────────────────────────────────
+# Both the headset inline button and shutter button 2 wake Venom (+ pause music
+# for the command). The Bluetooth camera-shutter remote's two buttons are
+# identified by their evdev key code. Leave 0 until you know them: press a button
+# once and the journal logs `venom.buttons: button: unmapped key code N`.
+[buttons]
+dnd_code  = 115  # shutter button 1 (Volume-Up)   = KEY_VOLUMEUP   → DND toggle
+wake_code = 114  # shutter button 2 (Volume-Down) = KEY_VOLUMEDOWN → wake Venom
+# NB: keep the shutter's iOS/Android switch in the position where the buttons
+# send volume up/down — flipping it changes these codes.
+
+# ── Find my phone (ntfy) ─────────────────────────────────────────────────────
+# "Find my phone" / "ring my phone" (spoken) sends a max-priority push to this
+# ntfy topic. Install the ntfy app on your phone, subscribe to the same topic,
+# and give it a loud/alarm sound so it rings even on silent. Off until a topic
+# is set. Use a long, random topic name — anyone who knows it can ring your phone.
+[phone]
+ntfy_server = "https://ntfy.sh"
+ntfy_topic  = "venom-k1j2os4maw"   # subscribe your phone's ntfy app to this exact topic
+
+# ── Screen reading (OCR) ─────────────────────────────────────────────────────
+# Run laptop/screen_server.py on your laptop, then say "look at my screen" and
+# Jarvis reads the on-screen text (local OCR — fast, no vision API, text only).
+# Off until you set host. See laptop/README.md.
+[screen]
+enabled = true
+host    = ""              # laptop LAN/Tailscale address, e.g. "192.168.1.50"
+port    = 8766
+token   = ""              # must match the screen server's --token
+timeout = 5.0             # seconds to wait for the OCR round-trip
+
+# ── Brain candidates, lowest priority number wins ────────────────────────────
+# The laptop running the FLINT brain service. Update `host` to your laptop's
+# LAN or Tailscale address. Priority 0 = always preferred when reachable.
+[[brain]]
+name = "laptop"
+host = "192.168.1.50"
+port = 8765
+priority = 0
+
+# Cloud fallbacks (reachability of the provider endpoint).
+[[brain]]
+name = "gemini"
+host = "generativelanguage.googleapis.com"
+port = 443
+priority = 10
+
+[[brain]]
+name = "groq"
+host = "api.groq.com"
+port = 443
+priority = 11
+
+[[brain]]
+name = "openai"
+host = "api.openai.com"
+port = 443
+priority = 12
+
+[[brain]]
+name = "anthropic"
+host = "api.anthropic.com"
+port = 443
+priority = 13
+
+[[brain]]
+name = "openrouter"
+host = "openrouter.ai"
+port = 443
+priority = 14

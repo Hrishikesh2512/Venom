@@ -1,0 +1,41 @@
+[Unit]
+Description=Venom — standalone voice assistant appliance
+Documentation=https://github.com/Hrishikesh2512/FLINT
+# FIXED (Fix 3): also order after nss-lookup.target so a working DNS resolver
+# (dnsmasq, installed by provision.sh) is up before Venom starts. Ordering only
+# after network-online.target still let us race ahead of DNS, which caused the
+# 40s [Errno -3] "Temporary failure in name resolution" storm at boot.
+After=network-online.target nss-lookup.target sound.target bluetooth.service wireplumber-system.service
+Wants=network-online.target nss-lookup.target
+
+[Service]
+Type=notify
+ExecStart=/opt/venom/venv/bin/python -m venom
+WatchdogSec=90
+Restart=always
+RestartSec=5
+User=venom
+SupplementaryGroups=audio bluetooth input systemd-journal
+# Bluetooth audio flows through the system-wide PipeWire instance.
+Environment=PIPEWIRE_RUNTIME_DIR=/run/pipewire
+Environment=XDG_RUNTIME_DIR=/run/pipewire
+RuntimeDirectory=venom
+ConfigurationDirectory=venom
+StateDirectory=venom
+
+# 2 GB Pi: the voice stack (onnxruntime + live session) fits comfortably here,
+# and a leak can never take the machine down.
+MemoryHigh=450M
+MemoryMax=600M
+
+# Hardening — the daemon only reads /proc/asound, probes TCP, and writes /run/venom.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

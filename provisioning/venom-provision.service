@@ -1,0 +1,14 @@
+[Unit]
+Description=Venom provisioning & self-update (pulls fixes from the repo every boot)
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/venom/provision/provision.sh
+TimeoutStartSec=30min
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
